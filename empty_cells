@@ -1,3 +1,37 @@
-!#/bin/bash
+#!/bin/bash
+
+# add first input as file
+file=$1
+
+# if no valid file, print error and exit
+if [ $# -ne 1 ]; then
+    echo "error: file does not exist. Please use a valid file" >&2 
+    exit 1
+fi
 
 
+awk -F';' '
+# process the 1st row -- header, and initialize the number to 0
+NR == 1 {
+    for (i = 1; i <= NF; i++) {
+        headers[i] = $i
+        count[i] = 0
+    }
+ # skip to the next line -- avoid processing the header as data
+    next
+}
+
+{
+    for (i = 1; i <= NF; i++) {
+        if ($i == "") {
+# if the cell is empty, increment into count
+            count[i]++
+        }
+    }
+}
+END {
+    for (i = 1; i <= length(headers); i++) {
+        print headers[i] ": " count[i]
+    }
+}
+' "$file"
