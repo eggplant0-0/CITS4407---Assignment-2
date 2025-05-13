@@ -13,22 +13,23 @@ fi
 awk -F';' '
 # process the 1st row -- header, and initialize the number to 0
 NR == 1 {
+    sub(/\r$/, "")  # remove carriage return if present
     for (i = 1; i <= NF; i++) {
         headers[i] = $i
         count[i] = 0
     }
- # skip to the next line -- avoid processing the header as data
     next
 }
 
 {
+    sub(/\r$/, "")  # remove carriage return from each data line
     for (i = 1; i <= NF; i++) {
         if ($i == "") {
-# if the cell is empty, increment into count
             count[i]++
         }
     }
 }
+
 END {
     for (i = 1; i <= length(headers); i++) {
         print headers[i] ": " count[i]
