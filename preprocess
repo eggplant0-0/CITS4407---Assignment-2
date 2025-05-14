@@ -2,18 +2,57 @@
 
 file=$1
 
-# Check for exactly one input file
 if [ $# -ne 1 ]; then
-    echo "Usage: $0 input_file" >&2
+    echo "$1 should be a valid file." >&2
     exit 1
 fi
 
-# Get the max ID and set next_id to fill in empty id
-max_id=$(awk -F';' 'NR > 1 { if ($1 > max) max = $1 } END { print max }' "$file")
+# get existing max ID, and set first next_id
+max_id=$(awk -F';' 'NR > 1 && $1 ~ /^[0-9]+$/ && $1+0 > max { max = $1+0 } END { print max }' "$file")
 next_id=$((max_id + 1))
 
-# 1. clean /r/n to /n
-# 2. fill in with max_id+1
-# 3. transform , into .
-# 4. delete non-ASCII
-# 5. transform ; into \t
+# Transform the format into .tsv
+output="${file%.txt}.tsv"
+
+# Clean and transform in one awk block
+awk -F';' -v OFS='\t' \
+    -v next_id="$next_id" \
+    -v non_ascii='[^\x00-\x7F]' '
+
+# Clean the header
+NR==1 {
+  for (i = 1; i <= NF; i++) {
+    gsub(/,/, ".", $i)          # replace commas in header labels (if any)
+    gsub(non_ascii, "", $i)    # remove non-ASCII characters
+    gsub(/^ +| +$/, "", $i)    # trim leading/trailing spaces
+    printf "%s%s", $i, (i < NF ? OFS : ORS)
+  }
+  next
+}
+
+# Data rows: clean fields, convert decimals, remove non-ASCII, trim whitespace
+{
+  # Remove '\r'
+  sub(/\r$/, "")
+
+  for (i = 1; i <= NF; i++) {
+    # Only replace decimal commas when fields are floating number -- start with a digit
+    if ($i ~ /^[0-9]/) {
+      gsub(/,/, ".", $i)
+    }
+    # Delete non-ASCII characters
+    gsub(non_ascii, "", $i)
+    gsub(/^ +| +$/, "", $i)    # trim spaces around field
+  }
+
+  # Fill in missing or invalid IDs with a new unique sequential ID
+  if ($1 == "" || $1 !~ /^[0-9]+$/) {
+    $1 = next_id++
+  }
+
+  # Output all fields as a tab-separated line
+  for (i = 1; i <= NF; i++) {
+    printf "%s%s", $i, (i < NF ? OFS : ORS)
+  }
+}
+' "$file" > "$output"
