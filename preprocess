@@ -18,41 +18,42 @@ output="${file%.txt}.tsv"
 awk -F';' -v OFS='\t' \
     -v next_id="$next_id" \
     -v non_ascii='[^\x00-\x7F]' '
-
-# Clean the header
 NR==1 {
-  for (i = 1; i <= NF; i++) {
-    gsub(/,/, ".", $i)          # replace commas in header labels (if any)
-    gsub(non_ascii, "", $i)    # remove non-ASCII characters
-    gsub(/^ +| +$/, "", $i)    # trim leading/trailing spaces
-    printf "%s%s", $i, (i < NF ? OFS : ORS)
-  }
-  next
+    # Header row: remove non-ASCII, trim whitespace
+    for (i=1; i<=NF; i++) {
+        gsub(non_ascii, "", $i)
+        gsub(/^ +| +$/, "", $i)
+        printf "%s%s", $i, (i<NF?OFS:ORS)
+    }
+    next
 }
 
-# Data rows: clean fields, convert decimals, remove non-ASCII, trim whitespace
 {
-  # Remove '\r'
-  sub(/\r$/, "")
+    # Remove Windows carriage return
+    sub(/\r$/, "")
 
-  for (i = 1; i <= NF; i++) {
-    # Only replace decimal commas when fields are floating number -- start with a digit
-    if ($i ~ /^[0-9]/) {
-      gsub(/,/, ".", $i)
+    # Clean each field: delete non-ASCII, trim spaces, convert decimal commas
+    for (i=1; i<=NF; i++) {
+        gsub(non_ascii, "", $i)
+        gsub(/^ +| +$/, "", $i)
+        if ($i ~ /^[0-9]/) {
+            gsub(/,/, ".", $i)
+        }
     }
-    # Delete non-ASCII characters
-    gsub(non_ascii, "", $i)
-    gsub(/^ +| +$/, "", $i)    # trim spaces around field
-  }
 
-  # Fill in missing or invalid IDs with a new unique sequential ID
-  if ($1 == "" || $1 !~ /^[0-9]+$/) {
-    $1 = next_id++
-  }
+    # Normalize comma spacing only in the last two columns
+    c1 = NF-1; c2 = NF
+    gsub(/ *, */, ",", $c1)
+    gsub(/ *, */, ",", $c2)
 
-  # Output all fields as a tab-separated line
-  for (i = 1; i <= NF; i++) {
-    printf "%s%s", $i, (i < NF ? OFS : ORS)
-  }
+    # Assign new sequential ID if missing or invalid
+    if ($1=="" || $1!~/^[0-9]+$/) {
+        $1 = next_id++
+    }
+
+    # Output cleaned line as TSV
+    for (i=1; i<=NF; i++) {
+        printf "%s%s", $i, (i<NF?OFS:ORS)
+    }
 }
 ' "$file" > "$output"
