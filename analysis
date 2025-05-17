@@ -1,3 +1,129 @@
-!#/bin/bash
+#!/bin/bash
+
+# 23884895 - Xuechen Mao
+# Analysis script: Process and analyze the cleaned TSV dataset
+# Usage: ./analysis input_file.tsv
+
+# Check if exactly one argument (input file) is provided
+if [ $# -ne 1 ]; then
+    echo "Usage: $0 input_file.tsv" >&2
+    exit 1
+fi
+
+file="$1"
+
+# Check if input file exists
+if [ ! -f "$file" ]; then
+    echo "Error: Input file '$file' does not exist" >&2
+    exit 1
+fi
+
+# Check if input file is readable
+if [ ! -r "$file" ]; then
+    echo "Error: Input file '$file' is not readable" >&2
+    exit 1
+fi
+
+# Check if input file is empty
+if [ ! -s "$file" ]; then
+    echo "Error: Input file '$file' is empty" >&2
+    exit 1
+fi
+
+awk -F'\t' '
+BEGIN {
+    # Set output field separator to tab
+    OFS="\t"
+}
+
+NR==1 {
+    # Set column indices based on their fixed positions in the TSV file
+    year_col = 3      # Year Published
+    rate_col = 9      # Rating Average
+    comp_col = 11     # Complexity Average
+    mech_col = 13     # Mechanics
+    dom_col = 14      # Domains
+    next
+}
+
+{
+    # Count unique mechanics (split by comma)
+    n = split($mech_col, mlist, ",")
+    for (j = 1; j <= n; j++) {
+        key = mlist[j]
+        gsub(/^ +| +$/, "", key)  # trim whitespace
+        if (key != "") mech_count[key]++
+    }
+
+    # Count unique domains (split by comma)
+    m = split($dom_col, dlist, ",")
+    for (j = 1; j <= m; j++) {
+        key = dlist[j]
+        gsub(/^ +| +$/, "", key)  # trim whitespace
+        if (key != "") dom_count[key]++
+    }
+
+    # Calculate sums for Year vs Rating correlation
+    if ($year_col != "" && $rate_col != "") {
+        y = $year_col + 0  # convert to number
+        r = $rate_col + 0
+        sum_y += y; sum_r += r
+        sum_y2 += y * y; sum_r2 += r * r
+        sum_yr += y * r; n1++
+    }
+
+    # Calculate sums for Complexity vs Rating correlation
+    if ($comp_col != "" && $rate_col != "") {
+        c = $comp_col + 0  # convert to number
+        r2 = $rate_col + 0
+        sum_c += c; sum_r2b += r2
+        sum_c2 += c * c; sum_r2sq += r2 * r2
+        sum_cr += c * r2; n2++
+    }
+}
+
+END {
+    # Check if we have enough data points for correlation
+    if (n1 == 0 || n2 == 0) {
+        print "Error: No valid data points found for correlation calculation" > "/dev/stderr"
+        exit 1
+    }
+
+    # Find most popular mechanics by comparing counts
+    for (k in mech_count) {
+        if (mech_count[k] > max_mech) {
+            max_mech = mech_count[k]
+            popular_mech = k
+        }
+    }
+
+    # Find most popular domain by comparing counts
+    for (k in dom_count) {
+        if (dom_count[k] > max_dom) {
+            max_dom = dom_count[k]
+            popular_dom = k
+        }
+    }
+
+    # Output results
+    printf "The most popular game mechanics is %s found in %d games\n", popular_mech, max_mech
+    printf "The most popular game domain is %s found in %d games\n", popular_dom, max_dom
+
+    # Calculate Pearson correlation: Year vs Rating
+    # Formula: cov(X,Y) / (sd(X) * sd(Y))
+    cov1 = sum_yr - (sum_y * sum_r / n1)
+    sd_y = sqrt(sum_y2 - (sum_y^2 / n1))
+    sd_r = sqrt(sum_r2 - (sum_r^2 / n1))
+    corr1 = (sd_y > 0 && sd_r > 0) ? cov1 / (sd_y * sd_r) : 0
+    printf "The correlation between the year of publication and the average rating is %.3f\n", corr1
+
+    # Calculate Pearson correlation: Complexity vs Rating
+    # Formula: cov(X,Y) / (sd(X) * sd(Y))
+    cov2 = sum_cr - (sum_c * sum_r2b / n2)
+    sd_c = sqrt(sum_c2 - (sum_c^2 / n2))
+    sd_r2 = sqrt(sum_r2sq - (sum_r2b^2 / n2))
+    corr2 = (sd_c > 0 && sd_r2 > 0) ? cov2 / (sd_c * sd_r2) : 0
+    printf "The correlation between the complexity of a game and its average rating is %.3f\n", corr2
+}' "$file"
 
 
