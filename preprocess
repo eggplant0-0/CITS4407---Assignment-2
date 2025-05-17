@@ -23,7 +23,18 @@ NR==1 {
     for (i=1; i<=NF; i++) {
         gsub(non_ascii, "", $i)
         gsub(/^ +| +$/, "", $i)
-        printf "%s%s", $i, (i<NF?OFS:ORS)
+        # Find the rating column index
+        if ($i ~ /Rating/) {
+            rating_col = i
+        }
+    }
+    # Print headers with split rating columns
+    for (i=1; i<=NF; i++) {
+        if (i == rating_col) {
+            printf "Users Rated%sRating Average%s", OFS, (i<NF?OFS:ORS)
+        } else {
+            printf "%s%s", $i, (i<NF?OFS:ORS)
+        }
     }
     next
 }
@@ -51,9 +62,18 @@ NR==1 {
         $1 = next_id++
     }
 
-    # Output cleaned line as TSV
+    # Output cleaned line as TSV, handling rating column specially
     for (i=1; i<=NF; i++) {
-        printf "%s%s", $i, (i<NF?OFS:ORS)
+        if (i == rating_col) {
+            # Split rating field into users and average
+            users = $i
+            avg = $i
+            sub(/^[0-9]+ /, "", avg)  # Remove users part from average
+            sub(/ .*$/, "", users)    # Keep only users part
+            printf "%s%s%s%s", users, OFS, avg, (i<NF?OFS:ORS)
+        } else {
+            printf "%s%s", $i, (i<NF?OFS:ORS)
+        }
     }
 }
 ' "$file" > "$output"

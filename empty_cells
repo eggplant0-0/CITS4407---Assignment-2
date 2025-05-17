@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# 23884895 - Xuechen MAO
+# The script is used to count the number of empty cells in each column of a txt file
+
 # add first input as file
 file=$1
 
