@@ -9,10 +9,9 @@ Author: Xuechen Mao
 This project focuses on analyzing board games from BoardGameGeek dataset: https://www.kaggle.com/datasets/andrewmvd/board-games. The original data is semicolon-separated and includes inconsistencies such as missing values, non-ASCII characters, and formatting issues.
 
 Three shell scripts are provided:
-
 - `empty_cells`: Checks and reports the number of empty cells per column.
 - `preprocess`: Cleans the dataset and standard output.
-- `analysis`: Analyzes the cleaned file and output a cleaned .tsv file and answers four research questions.
+- `analysis`: Analyzes cleaned file and answers four research questions.
 
 ---
 
@@ -109,7 +108,7 @@ The correlation between the complexity of a game and its average rating is 0.426
 
 If data is insufficient:
 ```
-The data should contain at least 2 sample, otherwise cannot compute correlation. 
+The data should contain at least 2 samples, otherwise cannot compute correlation. 
 ```
 
 If the correlation is meaningless: 
@@ -120,9 +119,7 @@ Not enough variation to compute correlation.
 
 # Requirements
 
-- A Unix/Linux environment (course Docker image or UniApps recommended)
-- Shell utilities: awk.
-- All scripts are written in Bash
+- A Unix/Linux environment (course Docker image recommended)
 
 ---
 
@@ -130,9 +127,10 @@ Not enough variation to compute correlation.
 
 - Column order in the dataset is fixed and consistent
 - Scripts produce only final output, no intermediate temp files
-- Errors are printed to stderr
 - Scripts include basic input validation
-- The `analysis` script should output both research answers and cleaned .tsv file
+- The assignment requirements are ambigious, so I make assumptions below: 
+  - 1. since the `preprocess` script will give a stdout, I directly use `preprocess` in `analysis` if the file is uncleaned with `.txt` format. So it can accept both .txt and .tsv file.
+  - 2. plus, the `analysis` script outputs 4 research answers.
 
 ---
 

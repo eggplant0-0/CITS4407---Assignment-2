@@ -1,14 +1,14 @@
 #!/bin/bash
 # --------------------------------------------------------------------
 # 23884895 - Xuechen Mao
-# Purpose: Process and analyze the cleaned TSV dataset, and extract information: 
-# 1. Find the most popular game mechanic and domains - based on appearance
+# Purpose: Process and analyze the board game dataset, accept both .txt and .tsv files, and then extract information: 
+# - 1. Find the most popular game mechanic and domains - based on appearance
 # 2. Calculate Pearson correlation coefficients between Year Published and Average rating
 # 3. Calculate Pearson correlation coefficients between Game Complexity and Average rating
 # Usage: ./analysis <input_file>
 # --------------------------------------------------------------------
 
-# Check if exactly one argument (input file) is provided
+# Check if exactly one argument is provided
 if [ $# -ne 1 ]; then
     echo "Usage: ./analysis $0 input_file" >&2
     exit 1
@@ -16,19 +16,27 @@ fi
 
 file="$1"
 
-# Transform the .txt file into .tsv
-output="${file%.txt}.tsv"
-
-# Use `preprocess` to get a cleaned file and transformed to .tsv format
-./preprocess "$file" > "$output"
-
 # Check if input file exists
 if [ ! -f "$file" ]; then
     echo "Error: Input file '$file' does not exist" >&2
     exit 1
 fi
 
-awk -F$'\t' '
+# Check file extension and preprocess if needed
+if [[ "$file" == *.txt ]]; then
+    # If the input is a txt file, preprocess it first
+    cleaned_data=$(./preprocess "$file")
+    if [ $? -ne 0 ]; then
+        echo "Error: Preprocessing failed" >&2
+        exit 1
+    fi
+else
+    # If the input is already a tsv file, use it directly
+    cleaned_data=$(cat "$file")
+fi
+
+# Process the data with awk
+echo "$cleaned_data" | awk -F$'\t' '
 BEGIN {
     # Set column indices based on their fixed positions
     year_col = 3
@@ -116,7 +124,7 @@ END {
             print "Not enough variation to compute correlation" >"/dev/stderr"
         }
     } else {
-        print "The data should contain at least 2 sample, otherwise cannot compute correlation" >"/dev/stderr" 
+        print "The data should be at least 2, otherwise cannot compute correlation" >"/dev/stderr" 
     }
 
     # 2. Complexity vs Rating correlation
@@ -131,8 +139,6 @@ END {
             print "Not enough variation to compute correlation" >"/dev/stderr"
         }
     } else {
-        print "The data should contain at least 2 sample, otherwise cannot compute correlation" >"/dev/stderr" 
+        print "The data should be at least 2, otherwise cannot compute correlation" >"/dev/stderr" 
     }
-}' "$output"
-
-
+}'
