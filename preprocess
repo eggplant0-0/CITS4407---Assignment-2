@@ -1,50 +1,56 @@
 #!/bin/bash
 
-file=$1
+# --------------------------------------------------------------------
+# Author:23884895 - Xuechen MAO
+# Purpose: The script is to clean input file data, and output as stdout. The data clean steps as follows:
+# 1. remove non-ASCII characters
+# 2. remove Microsoft endings to Unix endings(remove '\r')
+# 3. convert comma to dot for floating numbers
+# 4. fill empty id with current largest integer id +1 
+# 5. covert the semicolon separator into <tab> ('\t')
+# Usage: ./preprocess <input_file>
+# --------------------------------------------------------------------
 
+# 1. Check number of arguments, and print usage if not 1
 if [ $# -ne 1 ]; then
-    echo "$1 should be a valid file." >&2
+    echo "$1 does not exist." >&2
     exit 1
 fi
 
-# get existing max ID, and set first next_id
-max_id=$(awk -F';' 'NR > 1 && $1 ~ /^[0-9]+$/ && $1+0 > max { max = $1+0 } END { print max }' "$file")
+# accept 1 argument: input file
+file=$1
+
+# 2. Check if input file exists
+if [ ! -f "$file" ]; then
+    echo "Error: Input file '$file' does not exist" >&2
+    exit 1
+fi
+
+# Get existing max ID, and set first next_id as max_ID + 1
+max_id=$(
+    awk -F';' '
+    NR > 1 && $1 ~ /^[0-9]+$/ && $1+0 > max { 
+        max = $1+0 
+    } 
+    END {
+        print max 
+     }
+     ' "$file"
+)
 next_id=$((max_id + 1))
 
-# Transform the format into .tsv
-output="${file%.txt}.tsv"
-
-# Clean and transform in one awk block
-awk -F';' -v OFS='\t' \
-    -v next_id="$next_id" \
-    -v non_ascii='[^\x00-\x7F]' '
-NR==1 {
-    # Header row: remove non-ASCII, trim whitespace
-    for (i=1; i<=NF; i++) {
-        gsub(non_ascii, "", $i)
-        gsub(/^ +| +$/, "", $i)
-        # Find the rating column index
-        if ($i ~ /Rating/) {
-            rating_col = i
-        }
-    }
-    # Print headers with split rating columns
-    for (i=1; i<=NF; i++) {
-        if (i == rating_col) {
-            printf "Users Rated%sRating Average%s", OFS, (i<NF?OFS:ORS)
-        } else {
-            printf "%s%s", $i, (i<NF?OFS:ORS)
-        }
-    }
-    next
+# Clean and transform data, set awk input separator as ';' and output field separator(OFS) as '\t'
+# Also, set next_id to awk as a variable, so that it can be used in the awk block
+awk -F';' -v OFS='\t' -v next_id="$next_id" '
+BEGIN {
+    # Define pattern for non-ASCII characters
+    non_ascii = "[^\x00-\x7F]"
 }
-
 {
-    # Remove Windows carriage return
     sub(/\r$/, "")
 
-    # Clean each field: delete non-ASCII, trim spaces, convert decimal commas
-    for (i=1; i<=NF; i++) {
+    # Clean each field, remove non-ASCII characters, trim whitespace, and convert comma to dot
+    for (i = 1; i <= NF; i++) {
         gsub(non_ascii, "", $i)
         gsub(/^ +| +$/, "", $i)
         if ($i ~ /^[0-9]/) {
@@ -52,28 +58,14 @@ NR==1 {
         }
     }
 
-    # Normalize comma spacing only in the last two columns
-    c1 = NF-1; c2 = NF
-    gsub(/ *, */, ",", $c1)
-    gsub(/ *, */, ",", $c2)
-
-    # Assign new sequential ID if missing or invalid
-    if ($1=="" || $1!~/^[0-9]+$/) {
+    # Fill in next_id for data rows, assign new ID if needed
+    if ($1 == "") {
         $1 = next_id++
     }
 
-    # Output cleaned line as TSV, handling rating column specially
-    for (i=1; i<=NF; i++) {
-        if (i == rating_col) {
-            # Split rating field into users and average
-            users = $i
-            avg = $i
-            sub(/^[0-9]+ /, "", avg)  # Remove users part from average
-            sub(/ .*$/, "", users)    # Keep only users part
-            printf "%s%s%s%s", users, OFS, avg, (i<NF?OFS:ORS)
-        } else {
-            printf "%s%s", $i, (i<NF?OFS:ORS)
-        }
+    # Output row as TSV
+    for (i = 1; i <= NF; i++) {
+        printf "%s%s", $i, (i < NF ? OFS : ORS)
     }
 }
-' "$file" > "$output"
+' "$file"

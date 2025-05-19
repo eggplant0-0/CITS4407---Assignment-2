@@ -1,12 +1,16 @@
 #!/bin/bash
-
+# --------------------------------------------------------------------
 # 23884895 - Xuechen Mao
-# Analysis script: Process and analyze the cleaned TSV dataset
-# Usage: ./analysis input_file.tsv
+# Purpose: Process and analyze the cleaned TSV dataset, and extract information: 
+# 1. Find the most popular game mechanic and domains - based on appearance
+# 2. Calculate Pearson correlation coefficients between Year Published and Average rating
+# 3. Calculate Pearson correlation coefficients between Game Complexity and Average rating
+# Usage: ./analysis <input_file>
+# --------------------------------------------------------------------
 
 # Check if exactly one argument (input file) is provided
 if [ $# -ne 1 ]; then
-    echo "Usage: $0 input_file.tsv" >&2
+    echo "Usage: ./analysis $0 input_file" >&2
     exit 1
 fi
 
@@ -18,40 +22,26 @@ if [ ! -f "$file" ]; then
     exit 1
 fi
 
-# Check if input file is readable
-if [ ! -r "$file" ]; then
-    echo "Error: Input file '$file' is not readable" >&2
-    exit 1
-fi
-
-# Check if input file is empty
-if [ ! -s "$file" ]; then
-    echo "Error: Input file '$file' is empty" >&2
-    exit 1
-fi
-
-awk -F'\t' '
+awk -F$'\t' '
 BEGIN {
-    # Set output field separator to tab
-    OFS="\t"
+    # Set column indices based on their fixed positions
+    year_col = 3
+    rate_col = 9
+    comp_col = 11
+    mech_col = 13
+    dom_col = 14
 }
 
-NR==1 {
-    # Set column indices based on their fixed positions in the TSV file
-    year_col = 3      # Year Published
-    rate_col = 9      # Rating Average
-    comp_col = 11     # Complexity Average
-    mech_col = 13     # Mechanics
-    dom_col = 14      # Domains
-    next
-}
+NR > 1 {  # Skip header
+    # replace comma spacing in Mechanics and Domains columns for counting appearances, e.g "a , b" to "a,b"
+    gsub(/ *, */, ",", $mech_col)
+    gsub(/ *, */, ",", $dom_col)
 
-{
-    # Count unique mechanics (split by comma)
+    # Count unique mechanics, create a dictionary to store the count of each mechanic
     n = split($mech_col, mlist, ",")
     for (j = 1; j <= n; j++) {
         key = mlist[j]
-        gsub(/^ +| +$/, "", key)  # trim whitespace
+        gsub(/^ +| +$/, "", key)
         if (key != "") mech_count[key]++
     }
 
@@ -83,47 +73,60 @@ NR==1 {
 }
 
 END {
-    # Check if we have enough data points for correlation
-    if (n1 == 0 || n2 == 0) {
-        print "Error: No valid data points found for correlation calculation" > "/dev/stderr"
-        exit 1
-    }
-
     # Find most popular mechanics by comparing counts
+    max_mech = 0
     for (k in mech_count) {
         if (mech_count[k] > max_mech) {
             max_mech = mech_count[k]
-            popular_mech = k
+            max_mech_name = k
         }
     }
 
     # Find most popular domain by comparing counts
+    max_dom = 0
     for (k in dom_count) {
         if (dom_count[k] > max_dom) {
             max_dom = dom_count[k]
-            popular_dom = k
+            max_dom_name = k
         }
     }
 
     # Output results
-    printf "The most popular game mechanics is %s found in %d games\n", popular_mech, max_mech
-    printf "The most popular game domain is %s found in %d games\n", popular_dom, max_dom
+    printf "The most popular game mechanics is %s found in %d games\n", max_mech_name, max_mech
+    printf "The most popular game domain is %s found in %d games\n", max_dom_name, max_dom
 
-    # Calculate Pearson correlation: Year vs Rating
-    # Formula: cov(X,Y) / (sd(X) * sd(Y))
-    cov1 = sum_yr - (sum_y * sum_r / n1)
-    sd_y = sqrt(sum_y2 - (sum_y^2 / n1))
-    sd_r = sqrt(sum_r2 - (sum_r^2 / n1))
-    corr1 = (sd_y > 0 && sd_r > 0) ? cov1 / (sd_y * sd_r) : 0
-    printf "The correlation between the year of publication and the average rating is %.3f\n", corr1
+    # calculate correlation for 1. year published vs average rating; 2. complexity vs average rating
+    # if there are not at least 2 valid (non-empty, numeric) data points, throw error result
 
-    # Calculate Pearson correlation: Complexity vs Rating
-    # Formula: cov(X,Y) / (sd(X) * sd(Y))
-    cov2 = sum_cr - (sum_c * sum_r2b / n2)
-    sd_c = sqrt(sum_c2 - (sum_c^2 / n2))
-    sd_r2 = sqrt(sum_r2sq - (sum_r2b^2 / n2))
-    corr2 = (sd_c > 0 && sd_r2 > 0) ? cov2 / (sd_c * sd_r2) : 0
-    printf "The correlation between the complexity of a game and its average rating is %.3f\n", corr2
+    # 1. Year vs Rating correlation
+    if (n1 >= 2) {
+        cov1 = sum_yr - (sum_y * sum_r / n1)
+        sd_y = sqrt(sum_y2 - (sum_y^2 / n1))
+        sd_r = sqrt(sum_r2 - (sum_r^2 / n1))
+        if (sd_y > 0 && sd_r > 0) {
+            corr1 = cov1 / (sd_y * sd_r)
+            printf "The correlation between the year of publication and the average rating is %.3f\n", corr1
+        } else {
+            print "Not enough variation to compute correlation" >"/dev/stderr"
+        }
+    } else {
+        print "The data should be at least 2, otherwise cannot compute correlation" >"/dev/stderr" 
+    }
+
+    # 2. Complexity vs Rating correlation
+    if (n2 >= 2) {
+        cov2 = sum_cr - (sum_c * sum_r2b / n2)
+        sd_c = sqrt(sum_c2 - (sum_c^2 / n2))
+        sd_r2 = sqrt(sum_r2sq - (sum_r2b^2 / n2))
+        if (sd_c > 0 && sd_r2 > 0) {
+            corr2 = cov2 / (sd_c * sd_r2)
+            printf "The correlation between the complexity of a game and its average rating is %.3f\n", corr2
+        } else {
+            print "Not enough variation to compute correlation" >"/dev/stderr"
+        }
+    } else {
+        print "The data should be at least 2, otherwise cannot compute correlation" >"/dev/stderr" 
+    }
 }' "$file"
 
 

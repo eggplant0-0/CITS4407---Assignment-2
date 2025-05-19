@@ -3,7 +3,9 @@
 # --------------------------------------------------------------------
 # Author: 23884895 - Xuechen MAO
 # Purpose: The script is used to count the number of empty cells in each column of a file, and the separator is provided as a second argument
-# Usage: ./empty_cells input_file.txt seperator, e.g. ./empty_cells file.txt ';'
+# Usage: ./empty_cells <input_file> <seperator>
+    # e.g. ./empty_cells file.txt ';'
+    # if the separator is '\t', the input should be $'\t'
 # --------------------------------------------------------------------
 
 # accept 2 arguments: input file and separator
