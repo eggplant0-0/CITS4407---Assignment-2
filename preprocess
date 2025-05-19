@@ -3,11 +3,11 @@
 # --------------------------------------------------------------------
 # Author:23884895 - Xuechen MAO
 # Purpose: The script is to clean input file data, and output as stdout. The data clean steps as follows:
-# 1. remove non-ASCII characters
-# 2. remove Microsoft endings to Unix endings(remove '\r')
-# 3. convert comma to dot for floating numbers
-# 4. fill empty id with current largest integer id +1 
-# 5. covert the semicolon separator into <tab> ('\t')
+# - 1. remove non-ASCII characters
+# - 2. remove Microsoft endings to Unix endings(remove '\r')
+# - 3. convert comma to dot for floating numbers
+# - 4. fill empty id with current largest integer id +1 
+# - 5. covert the semicolon separator into <tab> ('\t')
 # Usage: ./preprocess <input_file>
 # --------------------------------------------------------------------
 

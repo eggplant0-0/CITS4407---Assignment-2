@@ -16,6 +16,12 @@ fi
 
 file="$1"
 
+# Transform the .txt file into .tsv
+output="${file%.txt}.tsv"
+
+# Use `preprocess` to get a cleaned file and transformed to .tsv format
+./preprocess "$file" > "$output"
+
 # Check if input file exists
 if [ ! -f "$file" ]; then
     echo "Error: Input file '$file' does not exist" >&2
@@ -110,7 +116,7 @@ END {
             print "Not enough variation to compute correlation" >"/dev/stderr"
         }
     } else {
-        print "The data should be at least 2, otherwise cannot compute correlation" >"/dev/stderr" 
+        print "The data should contain at least 2 sample, otherwise cannot compute correlation" >"/dev/stderr" 
     }
 
     # 2. Complexity vs Rating correlation
@@ -125,8 +131,8 @@ END {
             print "Not enough variation to compute correlation" >"/dev/stderr"
         }
     } else {
-        print "The data should be at least 2, otherwise cannot compute correlation" >"/dev/stderr" 
+        print "The data should contain at least 2 sample, otherwise cannot compute correlation" >"/dev/stderr" 
     }
-}' "$file"
+}' "$output"
 
 

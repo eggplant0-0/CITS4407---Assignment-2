@@ -13,7 +13,7 @@ file="$1"
 separator="$2"
 
 # 1. Check number of arguments, and print usage if not 2
-if [ $# -ne 2 ]; then
+if [ $# -ne 2 ]; then 
     echo "Usage: ./empty_cells input_file.txt seperator" >&2
     exit 1
 fi
