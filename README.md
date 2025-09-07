@@ -1,6 +1,5 @@
 # CITS4407 - Assignment 2: Board Games Analysis
 
-Author: Xuechen Mao
 
 ---
 
